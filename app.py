@@ -238,7 +238,7 @@ def train_model(df):
     if df is None:
         return None, None, None
     
-    # Exact 5 features for prediction - same as used in UI
+    # Exact 5 features for prediction
     feature_columns = [
         'Fever',
         'Tiredness',
@@ -260,25 +260,40 @@ def train_model(df):
     target_col = None
     if 'Severity' in df.columns:
         target_col = 'Severity'
-        y = df['Severity']
+        y_original = df['Severity']
     elif 'Covid' in df.columns:
         target_col = 'Covid'
-        y = df['Covid']
+        y_original = df['Covid']
     elif 'COVID' in df.columns:
         target_col = 'COVID'
-        y = df['COVID']
+        y_original = df['COVID']
     else:
         # Use last column as target
         target_col = df.columns[-1]
-        y = df[target_col]
+        y_original = df[target_col]
     
-    # Ensure binary classification
-    unique_values = y.unique()
-    if len(unique_values) != 2:
-        st.error(f"Target variable must have exactly 2 classes, found {len(unique_values)}")
+    # ✅ CONVERT TO BINARY: Low Risk (0) vs High Risk (1)
+    # If target has multiple classes, convert to binary based on median
+    unique_values = sorted(y_original.unique())
+    
+    if len(unique_values) == 2:
+        # Already binary
+        y = y_original
+    else:
+        # Multi-class to binary: median as threshold
+        # Values below/equal median = Low Risk (0)
+        # Values above median = High Risk (1)
+        median_val = y_original.median()
+        y = (y_original > median_val).astype(int)
+        st.info(f"✅ Converted {len(unique_values)} classes to binary using median threshold: {median_val:.1f}")
+    
+    # Verify binary classification
+    unique_classes = len(y.unique())
+    if unique_classes != 2:
+        st.error(f"Error: Still {unique_classes} classes after conversion")
         return None, None, None
     
-    # Split data with stratification for better balance
+    # Split data with stratification
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
@@ -288,7 +303,7 @@ def train_model(df):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Train optimized model - Random Forest for better accuracy
+    # Train Random Forest model
     model = RandomForestClassifier(
         n_estimators=100,
         max_depth=15,
@@ -321,7 +336,8 @@ def train_model(df):
         'y_pred': y_pred,
         'feature_columns': feature_columns,
         'roc_auc': roc_auc,
-        'target_col': target_col
+        'target_col': target_col,
+        'class_distribution': y.value_counts().to_dict()
     }
 
 # ==================== INITIALIZE SESSION STATE ====================
