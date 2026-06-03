@@ -190,6 +190,37 @@ def apply_custom_css():
     </style>
     """, unsafe_allow_html=True)
 
+# ==================== SYMPTOM SCALE MAPPING ====================
+def get_severity_label(value):
+    """Convert severity value to description label"""
+    if value == 0:
+        return "None"
+    elif value == 1:
+        return "Mild"
+    elif value == 2:
+        return "Moderate"
+    elif value == 3:
+        return "Severe"
+    else:
+        return "Critical"
+
+def get_fever_display(celsius):
+    """Convert severity value to fever temperature"""
+    temps = {
+        0: "Normal (37°C)",
+        1: "Low Fever (37-38°C)",
+        2: "Moderate Fever (38-39°C)",
+        3: "High Fever (39-40°C)",
+        4: "Very High Fever (40°C+)"
+    }
+    return temps.get(celsius, "Unknown")
+
+def convert_scale_to_binary(value):
+    """Convert severity scale (0-4) to binary (0-1) for model prediction"""
+    # If value is 0 or 1 -> 0 (absent/mild)
+    # If value is 2, 3, or 4 -> 1 (moderate/severe/critical)
+    return 1 if value >= 2 else 0
+
 # ==================== DATA LOADING & CACHING ====================
 @st.cache_data
 def load_dataset():
@@ -500,7 +531,7 @@ def homepage():
 
 # ==================== PREDICTION PAGE ====================
 def prediction_page():
-    """Create interactive prediction form"""
+    """Create interactive prediction form with degree scales"""
     st.markdown("<h1 style='text-align: center;'>🔮 COVID-19 Severity Prediction</h1>", unsafe_allow_html=True)
     
     # Load model
@@ -511,63 +542,109 @@ def prediction_page():
         st.error("Model not trained. Please ensure dataset is available.")
         return
     
-    # Create prediction form
-    st.markdown("### Enter Your Symptoms")
+    # Create prediction form with severity scales
+    st.markdown("### 🌡️ Enter Your Symptoms on Severity Scale")
+    st.info("Rate each symptom from 0 (None) to 4 (Critical)")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        fever = st.slider(
-            "🌡️ Fever (0 = No, 1 = Yes)",
+        # Fever - Temperature based scale
+        fever_level = st.slider(
+            "🌡️ Fever Severity",
             min_value=0,
-            max_value=1,
+            max_value=4,
             value=0,
             step=1,
-            help="Do you have a fever?"
+            help="0 = No fever | 1 = Low (37-38°C) | 2 = Moderate (38-39°C) | 3 = High (39-40°C) | 4 = Very High (40°C+)"
         )
+        st.caption(f"Temperature: {get_fever_display(fever_level)}")
         
-        tiredness = st.slider(
-            "😴 Tiredness (0 = No, 1 = Yes)",
+        # Tiredness - Energy level scale
+        tiredness_level = st.slider(
+            "😴 Tiredness/Fatigue Severity",
             min_value=0,
-            max_value=1,
+            max_value=4,
             value=0,
             step=1,
-            help="Do you feel tired?"
+            help="0 = No fatigue | 1 = Mild tiredness | 2 = Moderate fatigue | 3 = Severe fatigue | 4 = Extreme exhaustion"
         )
+        st.caption(f"Severity: {get_severity_label(tiredness_level)}")
         
-        dry_cough = st.slider(
-            "🤧 Dry Cough (0 = No, 1 = Yes)",
+        # Dry Cough - Intensity scale
+        dry_cough_level = st.slider(
+            "🤧 Dry Cough Severity",
             min_value=0,
-            max_value=1,
+            max_value=4,
             value=0,
             step=1,
-            help="Do you have a dry cough?"
+            help="0 = No cough | 1 = Occasional cough | 2 = Frequent cough | 3 = Persistent cough | 4 = Constant cough"
         )
+        st.caption(f"Severity: {get_severity_label(dry_cough_level)}")
     
     with col2:
-        difficulty_breathing = st.slider(
-            "💨 Difficulty in Breathing (0 = No, 1 = Yes)",
+        # Difficulty Breathing - Intensity scale
+        difficulty_breathing_level = st.slider(
+            "💨 Difficulty in Breathing Severity",
             min_value=0,
-            max_value=1,
+            max_value=4,
             value=0,
             step=1,
-            help="Do you have difficulty breathing?"
+            help="0 = No difficulty | 1 = Mild shortness of breath | 2 = Moderate breathing difficulty | 3 = Significant difficulty | 4 = Severe respiratory distress"
         )
+        st.caption(f"Severity: {get_severity_label(difficulty_breathing_level)}")
         
-        sore_throat = st.slider(
-            "👅 Sore Throat (0 = No, 1 = Yes)",
+        # Sore Throat - Intensity scale
+        sore_throat_level = st.slider(
+            "👅 Sore Throat Severity",
             min_value=0,
-            max_value=1,
+            max_value=4,
             value=0,
             step=1,
-            help="Do you have a sore throat?"
+            help="0 = No sore throat | 1 = Mild discomfort | 2 = Moderate pain | 3 = Severe pain | 4 = Extreme pain, difficulty swallowing"
         )
+        st.caption(f"Severity: {get_severity_label(sore_throat_level)}")
     
-    # Prepare prediction input
-    feature_values = [fever, tiredness, dry_cough, difficulty_breathing, sore_throat]
+    # Convert severity scales to binary values for model (0-1) by considering moderate and above as risk
+    feature_values = [
+        convert_scale_to_binary(fever_level),
+        convert_scale_to_binary(tiredness_level),
+        convert_scale_to_binary(dry_cough_level),
+        convert_scale_to_binary(difficulty_breathing_level),
+        convert_scale_to_binary(sore_throat_level)
+    ]
     feature_columns = ['Fever', 'Tiredness', 'Dry-Cough', 'Difficulty-in-Breathing', 'Sore-Throat']
     
+    # Overall Severity Summary
+    st.markdown("---")
+    st.markdown("### 📊 Overall Symptom Summary")
+    
+    overall_severity_score = (fever_level + tiredness_level + dry_cough_level + difficulty_breathing_level + sore_throat_level) / 5
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Average Severity Score", f"{overall_severity_score:.1f}/4")
+    
+    with col2:
+        if overall_severity_score < 1:
+            status = "✅ Minimal"
+        elif overall_severity_score < 2:
+            status = "🟡 Mild"
+        elif overall_severity_score < 3:
+            status = "🟠 Moderate"
+        else:
+            status = "🔴 Severe"
+        st.metric("Overall Status", status)
+    
+    with col3:
+        st.metric("Symptoms Present", sum(1 for v in [fever_level, tiredness_level, dry_cough_level, difficulty_breathing_level, sore_throat_level] if v > 0))
+    
+    with col4:
+        st.metric("Critical Symptoms", sum(1 for v in [fever_level, tiredness_level, dry_cough_level, difficulty_breathing_level, sore_throat_level] if v >= 3))
+    
     # Prediction Button with Animation
+    st.markdown("---")
     col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
     
     with col_btn2:
@@ -580,10 +657,18 @@ def prediction_page():
             # Store in session state
             st.session_state.last_prediction = {
                 'symptoms': dict(zip(feature_columns, feature_values)),
+                'symptom_scales': {
+                    'Fever': fever_level,
+                    'Tiredness': tiredness_level,
+                    'Dry-Cough': dry_cough_level,
+                    'Difficulty-in-Breathing': difficulty_breathing_level,
+                    'Sore-Throat': sore_throat_level
+                },
                 'prediction': prediction,
                 'confidence': confidence,
                 'probability': probability,
-                'timestamp': get_current_time()
+                'timestamp': get_current_time(),
+                'overall_severity_score': overall_severity_score
             }
             
             # Add to history
@@ -624,7 +709,7 @@ def prediction_page():
             """, unsafe_allow_html=True)
         
         # Metrics
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             st.metric("AI Confidence", f"{confidence:.1f}%")
@@ -633,6 +718,9 @@ def prediction_page():
             st.metric("Prediction", "High Risk" if prediction == 1 else "Low Risk")
         
         with col3:
+            st.metric("Overall Severity", f"{prediction_data['overall_severity_score']:.1f}/4")
+        
+        with col4:
             st.metric("Timestamp", prediction_data['timestamp'].split()[1])
         
         # Probability Visualization
@@ -690,15 +778,15 @@ def prediction_page():
             - Follow local health authority guidelines
             """)
         
-        # Severity Analysis
+        # Detailed Symptom Analysis with Severity Scales
         st.markdown("### 🔍 Detailed Symptom Analysis")
         
         symptom_analysis = {
-            'Fever': ('🌡️', fever),
-            'Tiredness': ('😴', tiredness),
-            'Dry-Cough': ('🤧', dry_cough),
-            'Difficulty-in-Breathing': ('💨', difficulty_breathing),
-            'Sore-Throat': ('👅', sore_throat)
+            'Fever': ('🌡️', prediction_data['symptom_scales']['Fever']),
+            'Tiredness': ('😴', prediction_data['symptom_scales']['Tiredness']),
+            'Dry-Cough': ('🤧', prediction_data['symptom_scales']['Dry-Cough']),
+            'Difficulty-in-Breathing': ('💨', prediction_data['symptom_scales']['Difficulty-in-Breathing']),
+            'Sore-Throat': ('👅', prediction_data['symptom_scales']['Sore-Throat'])
         }
         
         col1, col2, col3 = st.columns(3)
@@ -706,19 +794,41 @@ def prediction_page():
         
         for idx, (symptom, (icon, value)) in enumerate(symptom_analysis.items()):
             with columns[idx % 3]:
-                status = "Present" if value == 1 else "Absent"
-                color = "#f44336" if value == 1 else "#4caf50"
+                severity_label = get_severity_label(value)
+                
+                # Color gradient based on severity
+                if value == 0:
+                    color = "#4caf50"
+                    bg_color = "rgba(76, 175, 80, 0.1)"
+                    border_color = "rgba(76, 175, 80, 0.3)"
+                elif value == 1:
+                    color = "#8bc34a"
+                    bg_color = "rgba(139, 195, 74, 0.1)"
+                    border_color = "rgba(139, 195, 74, 0.3)"
+                elif value == 2:
+                    color = "#ff9800"
+                    bg_color = "rgba(255, 152, 0, 0.1)"
+                    border_color = "rgba(255, 152, 0, 0.3)"
+                elif value == 3:
+                    color = "#ff5722"
+                    bg_color = "rgba(255, 87, 34, 0.1)"
+                    border_color = "rgba(255, 87, 34, 0.3)"
+                else:
+                    color = "#f44336"
+                    bg_color = "rgba(244, 67, 54, 0.1)"
+                    border_color = "rgba(244, 67, 54, 0.3)"
                 
                 st.markdown(f"""
                 <div style="
-                    background: rgba({256 if value == 1 else 0}, {150 if value == 1 else 200}, {100 if value == 1 else 0}, 0.1);
-                    border: 1px solid rgba({256 if value == 1 else 0}, {150 if value == 1 else 200}, {100 if value == 1 else 0}, 0.3);
+                    background: {bg_color};
+                    border: 2px solid {border_color};
                     border-radius: 8px;
                     padding: 15px;
                     text-align: center;
                 ">
                     <h4 style="margin-bottom: 10px;">{icon} {symptom}</h4>
-                    <h3 style="color: {color}; margin: 0;">{status}</h3>
+                    <h3 style="color: {color}; margin: 0; font-size: 1.5rem;">{severity_label}</h3>
+                    <p style="color: #b0b0b0; margin: 5px 0 0 0; font-size: 0.9rem;">Level {value}/4</p>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -1095,7 +1205,7 @@ def about_page():
     st.markdown("""
     **Project Name:** AI-Based COVID-19 Severity Prediction System
     
-    **Version:** 1.0.0
+    **Version:** 1.0.1
     
     **Created:** 2024
     
@@ -1103,7 +1213,7 @@ def about_page():
     
     **Features:**
     - Real-time COVID-19 severity prediction
-    - Interactive symptom input
+    - Interactive symptom input with degree scales
     - Comprehensive analytics dashboard
     - Prediction history tracking
     - Modern UI with glassmorphism design
@@ -1186,7 +1296,7 @@ def main():
         st.metric("Total Predictions", len(st.session_state.prediction_history))
         
         st.markdown("---")
-        st.markdown("<p style='text-align: center; color: #888; font-size: 0.8rem;'>v1.0.0 | Powered by AI</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #888; font-size: 0.8rem;'>v1.0.1 | Powered by AI</p>", unsafe_allow_html=True)
     
     # Main Content
     if page == "🏠 Homepage":
