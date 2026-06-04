@@ -1,14 +1,19 @@
 """
-AI-Based COVID-19 Severity Prediction System
-A modern, futuristic healthcare AI dashboard using Streamlit
-Version: 2.0 - Optimized for 80%+ Accuracy
+================================================================================
+    AI-BASED COVID-19 SEVERITY PREDICTION SYSTEM
+    Modern Medical Dashboard using Streamlit & Machine Learning
+================================================================================
+Author: AI Development Team
+Date: 2024
+Description: Enterprise-grade COVID-19 severity prediction with advanced ML
+================================================================================
 """
 
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
 import plotly.express as px
+import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -16,1064 +21,1374 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, roc_auc_score
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 import warnings
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
-import io
-from pathlib import Path
+import time
 
 warnings.filterwarnings('ignore')
 
-# ==================== PAGE CONFIG ====================
+# ================================================================================
+# PAGE CONFIGURATION
+# ================================================================================
+
 st.set_page_config(
-    page_title="COVID-19 AI Prediction System",
+    page_title="COVID-19 Severity Prediction AI",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ==================== CUSTOM CSS ====================
-def apply_custom_css():
-    """Apply modern glassmorphism and dark theme CSS"""
-    st.markdown("""
+# ================================================================================
+# CUSTOM CSS & STYLING
+# ================================================================================
+
+def load_custom_css():
+    """Load custom CSS for modern glassmorphism UI"""
+    custom_css = """
     <style>
-    * {
-        margin: 0;
-        padding: 0;
-    }
-    
-    html, body, [class*="css"] {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    
-    /* Dark Theme */
-    [data-testid="stAppViewContainer"] {
-        background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
-        color: #e0e0e0;
-    }
-    
-    [data-testid="stSidebar"] {
-        background: rgba(26, 26, 46, 0.8);
-        backdrop-filter: blur(10px);
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    /* Glassmorphism Cards */
-    [data-testid="stMetricContainer"] {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        padding: 20px;
-        transition: all 0.3s ease;
-    }
-    
-    [data-testid="stMetricContainer"]:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.2);
-        transform: translateY(-5px);
-        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-    }
-    
-    /* Button Styling */
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 12px 24px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-    }
-    
-    /* Input Fields */
-    .stTextInput > div > div > input,
-    .stSelectbox > div > div > select,
-    .stNumberInput > div > div > input {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        color: #e0e0e0;
-        padding: 10px 12px;
-    }
-    
-    /* Tabs */
-    [data-testid="stTabs"] [role="tablist"] {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    [role="tab"] {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #e0e0e0;
-        border-radius: 8px 8px 0 0;
-        margin-right: 5px;
-        transition: all 0.3s ease;
-    }
-    
-    [role="tab"]:hover {
-        background: rgba(255, 255, 255, 0.1);
-    }
-    
-    [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-color: #667eea;
-    }
-    
-    /* Headers */
-    h1, h2, h3, h4, h5, h6 {
-        color: #ffffff;
-        font-weight: 700;
-    }
-    
-    /* Success/Danger Cards */
-    .success-card {
-        background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(56, 142, 60, 0.1) 100%);
-        border: 2px solid rgba(76, 175, 80, 0.3);
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 0 20px rgba(76, 175, 80, 0.2);
-        animation: glow-green 2s ease-in-out infinite;
-    }
-    
-    .danger-card {
-        background: linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(211, 47, 47, 0.1) 100%);
-        border: 2px solid rgba(244, 67, 54, 0.3);
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 0 20px rgba(244, 67, 54, 0.2);
-        animation: glow-red 2s ease-in-out infinite;
-    }
-    
-    @keyframes glow-green {
-        0%, 100% { box-shadow: 0 0 20px rgba(76, 175, 80, 0.2); }
-        50% { box-shadow: 0 0 30px rgba(76, 175, 80, 0.4); }
-    }
-    
-    @keyframes glow-red {
-        0%, 100% { box-shadow: 0 0 20px rgba(244, 67, 54, 0.2); }
-        50% { box-shadow: 0 0 30px rgba(244, 67, 54, 0.4); }
-    }
-    
-    /* Metric Values */
-    .metric-value {
-        font-size: 2rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.05);
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: rgba(102, 126, 234, 0.5);
-        border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: rgba(102, 126, 234, 0.7);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# ==================== SYMPTOM SCALE MAPPING ====================
-def get_severity_label(value):
-    """Convert severity value to description label"""
-    if value == 0:
-        return "None"
-    elif value == 1:
-        return "Mild"
-    elif value == 2:
-        return "Moderate"
-    elif value == 3:
-        return "Severe"
-    else:
-        return "Critical"
-
-def get_fever_display(celsius):
-    """Convert severity value to fever temperature"""
-    temps = {
-        0: "Normal (37°C)",
-        1: "Low Fever (37-38°C)",
-        2: "Moderate Fever (38-39°C)",
-        3: "High Fever (39-40°C)",
-        4: "Very High Fever (40°C+)"
-    }
-    return temps.get(celsius, "Unknown")
-
-def convert_scale_to_binary(value):
-    """Convert severity scale (0-4) to binary (0-1) for model prediction"""
-    return 1 if value >= 2 else 0
-
-# ==================== DATA LOADING & CACHING ====================
-@st.cache_data
-def load_dataset():
-    """Load and cache the COVID-19 dataset"""
-    try:
-        df = pd.read_csv('Cleaned-Data.csv')
-        return df
-    except FileNotFoundError:
-        st.error("Dataset 'Cleaned-Data.csv' not found. Please upload the dataset.")
-        return None
-
-@st.cache_resource
-def train_model(df):
-    """Train and cache the ML model with optimal features"""
-    if df is None:
-        return None, None, None
-    
-    # Exact 5 features for prediction
-    feature_columns = [
-        'Fever',
-        'Tiredness',
-        'Dry-Cough',
-        'Difficulty-in-Breathing',
-        'Sore-Throat'
-    ]
-    
-    # Check if all features exist
-    missing_cols = [col for col in feature_columns if col not in df.columns]
-    if missing_cols:
-        st.error(f"Missing columns: {missing_cols}")
-        return None, None, None
-    
-    # Prepare features
-    X = df[feature_columns]
-    
-    # Determine target column - try different possible names
-    target_col = None
-    if 'Severity' in df.columns:
-        target_col = 'Severity'
-        y_original = df['Severity']
-    elif 'Covid' in df.columns:
-        target_col = 'Covid'
-        y_original = df['Covid']
-    elif 'COVID' in df.columns:
-        target_col = 'COVID'
-        y_original = df['COVID']
-    else:
-        # Use last column as target
-        target_col = df.columns[-1]
-        y_original = df[target_col]
-    
-    # ✅ CONVERT TO BINARY: Low Risk (0) vs High Risk (1)
-    # If target has multiple classes, convert to binary based on median
-    unique_values = sorted(y_original.unique())
-    
-    if len(unique_values) == 2:
-        # Already binary
-        y = y_original
-    else:
-        # Multi-class to binary: median as threshold
-        # Values below/equal median = Low Risk (0)
-        # Values above median = High Risk (1)
-        median_val = y_original.median()
-        y = (y_original > median_val).astype(int)
-        st.info(f"✅ Converted {len(unique_values)} classes to binary using median threshold: {median_val:.1f}")
-    
-    # Verify binary classification
-    unique_classes = len(y.unique())
-    if unique_classes != 2:
-        st.error(f"Error: Still {unique_classes} classes after conversion")
-        return None, None, None
-    
-    # Split data with stratification
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
-    
-    # Scale features
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    
-    # Train Random Forest model
-    model = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=15,
-        min_samples_split=5,
-        min_samples_leaf=2,
-        random_state=42,
-        class_weight='balanced',
-        n_jobs=-1
-    )
-    
-    model.fit(X_train_scaled, y_train)
-    
-    # Calculate metrics
-    y_pred = model.predict(X_test_scaled)
-    accuracy = accuracy_score(y_test, y_pred)
-    cm = confusion_matrix(y_test, y_pred)
-    
-    # Try to calculate ROC-AUC
-    try:
-        y_pred_proba = model.predict_proba(X_test_scaled)
-        roc_auc = roc_auc_score(y_test, y_pred_proba[:, 1])
-    except:
-        roc_auc = None
-    
-    return model, scaler, {
-        'accuracy': accuracy,
-        'confusion_matrix': cm,
-        'X_test': X_test,
-        'y_test': y_test,
-        'y_pred': y_pred,
-        'feature_columns': feature_columns,
-        'roc_auc': roc_auc,
-        'target_col': target_col,
-        'class_distribution': y.value_counts().to_dict()
-    }
-
-# ==================== INITIALIZE SESSION STATE ====================
-def initialize_session_state():
-    """Initialize session state variables"""
-    if 'prediction_history' not in st.session_state:
-        st.session_state.prediction_history = []
-    if 'ai_status' not in st.session_state:
-        st.session_state.ai_status = 'ONLINE'
-
-initialize_session_state()
-
-# ==================== UTILITY FUNCTIONS ====================
-def get_current_time():
-    """Get formatted current time"""
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-def make_prediction(model, scaler, feature_values, feature_columns):
-    """Make COVID-19 severity prediction"""
-    # Scale input
-    input_scaled = scaler.transform([feature_values])
-    
-    # Get prediction and probability
-    prediction = model.predict(input_scaled)[0]
-    probability = model.predict_proba(input_scaled)[0]
-    
-    # Calculate confidence
-    confidence = max(probability) * 100
-    
-    return prediction, confidence, probability
-
-def add_to_history(prediction_data):
-    """Add prediction to history"""
-    st.session_state.prediction_history.append({
-        'timestamp': get_current_time(),
-        'symptoms': prediction_data['symptoms'],
-        'prediction': prediction_data['prediction'],
-        'confidence': prediction_data['confidence']
-    })
-
-# ==================== HOMEPAGE ====================
-def homepage():
-    """Create beautiful homepage with hero section"""
-    # Hero Title
-    st.markdown("""
-    <div style="text-align: center; padding: 60px 20px 40px;">
-        <h1 style="
-            font-size: 3.5rem;
-            font-weight: 800;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .main {
+            background: linear-gradient(135deg, rgba(15, 12, 41, 0.95), rgba(48, 43, 99, 0.95));
+        }
+        
+        .stApp {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+        }
+        
+        /* Glassmorphism Cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.5);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        /* Success Card - Green Glow */
+        .success-card {
+            background: rgba(52, 211, 153, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid #34d399;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(52, 211, 153, 0.5);
+            animation: glow-green 2s ease-in-out infinite;
+        }
+        
+        /* Danger Card - Red Glow */
+        .danger-card {
+            background: rgba(239, 68, 68, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid #ef4444;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+            animation: glow-red 2s ease-in-out infinite;
+        }
+        
+        /* Glowing Animations */
+        @keyframes glow-green {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(52, 211, 153, 0.4),
+                            0 0 30px rgba(52, 211, 153, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(52, 211, 153, 0.6),
+                            0 0 50px rgba(52, 211, 153, 0.4);
+            }
+        }
+        
+        @keyframes glow-red {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(239, 68, 68, 0.4),
+                            0 0 30px rgba(239, 68, 68, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(239, 68, 68, 0.6),
+                            0 0 50px rgba(239, 68, 68, 0.4);
+            }
+        }
+        
+        /* Stat Card Animation */
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+        
+        .stat-card {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        /* Gradient Button */
+        .gradient-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .gradient-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
+        }
+        
+        /* Sidebar Styling */
+        .sidebar-content {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        /* Title Gradient */
+        .gradient-title {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 10px;
-        ">🏥 AI-Based COVID-19 Severity Prediction System</h1>
-        <h2 style="
-            font-size: 1.3rem;
-            color: #b0b0b0;
-            font-weight: 400;
-            margin-bottom: 30px;
-        ">Predict COVID risk and severity using Machine Learning and symptom analysis</h2>
+        }
+        
+        /* Loading Animation */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        
+        .pulse {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        /* Status Indicator */
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .status-online {
+            background-color: #34d399;
+        }
+        
+        .status-offline {
+            background-color: #f97316;
+        }
+    </style>
+    """
+    st.markdown(custom_css, unsafe_allow_html=True)
+
+load_custom_css()
+
+# ================================================================================
+# SESSION STATE INITIALIZATION
+# ================================================================================
+
+def initialize_session_state():
+    """Initialize all session state variables"""
+    if 'prediction_history' not in st.session_state:
+        st.session_state.prediction_history = []
+    
+    if 'model' not in st.session_state:
+        st.session_state.model = None
+    
+    if 'scaler' not in st.session_state:
+        st.session_state.scaler = None
+    
+    if 'metrics' not in st.session_state:
+        st.session_state.metrics = None
+    
+    if 'df' not in st.session_state:
+        st.session_state.df = None
+
+initialize_session_state()
+
+# ================================================================================
+# DATA LOADING & PREPROCESSING
+# ================================================================================
+
+@st.cache_resource
+def load_data():
+    """
+    Load and preprocess the COVID-19 dataset
+    - Handles missing values
+    - Encodes categorical variables
+    - Cleans non-numeric data
+    """
+    try:
+        df = pd.read_csv('Cleaned-Data.csv')
+        
+        # Remove rows with non-numeric values in critical columns
+        feature_columns = ['Fever', 'Tiredness', 'Dry-Cough', 'Difficulty-in-Breathing', 'Sore-Throat']
+        
+        # Convert features to numeric, coercing errors to NaN
+        for col in feature_columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # Find severity column (case-insensitive)
+        severity_col = None
+        for col in df.columns:
+            if 'severity' in col.lower():
+                severity_col = col
+                break
+        
+        if severity_col is None:
+            # If no severity column, use last column as target
+            severity_col = df.columns[-1]
+        
+        # Convert severity to numeric if it's categorical
+        if df[severity_col].dtype == 'object':
+            # Map string values to numeric
+            severity_mapping = {}
+            unique_values = df[severity_col].unique()
+            for i, val in enumerate(unique_values):
+                if pd.notna(val):
+                    severity_mapping[str(val).lower()] = i
+            
+            df[severity_col] = df[severity_col].astype(str).str.lower().map(severity_mapping)
+        
+        # Remove non-numeric severity values
+        df[severity_col] = pd.to_numeric(df[severity_col], errors='coerce')
+        
+        # Drop rows with NaN values in critical columns
+        df = df.dropna(subset=feature_columns + [severity_col])
+        
+        # Fill any remaining NaN values with median
+        for col in feature_columns:
+            if df[col].isnull().any():
+                df[col].fillna(df[col].median(), inplace=True)
+        
+        return df, feature_columns, severity_col
+    
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return None, None, None
+
+# ================================================================================
+# MACHINE LEARNING MODEL
+# ================================================================================
+
+@st.cache_resource
+def train_model(df, feature_columns, severity_col):
+    """
+    Train Logistic Regression model with balanced class weights
+    Returns: model, scaler, metrics dictionary
+    """
+    try:
+        # Prepare features and target
+        X = df[feature_columns].copy()
+        y = df[severity_col].copy()
+        
+        # Handle any remaining NaN values
+        X = X.fillna(X.median())
+        y = y.fillna(y.median())
+        
+        # Ensure all values are numeric
+        X = X.astype(float)
+        y = y.astype(float)
+
+        y = (y > 0).astype(int)
+       
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
+        
+        # Standardize features
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        # Train model with balanced class weights
+        model =  RandomForestClassifier(
+        n_estimators=200,
+        max_depth=10,
+        random_state=42
+        )
+        model.fit(X_train_scaled, y_train)
+        
+        # Calculate metrics
+        y_pred = model.predict(X_test_scaled)
+        accuracy = accuracy_score(y_test, y_pred)
+        
+        # Get classification report
+        report = classification_report(
+            y_test, y_pred, 
+            output_dict=True,
+            zero_division=0
+        )
+        
+        # Confusion matrix
+        cm = confusion_matrix(y_test, y_pred)
+        
+        metrics = {
+            'accuracy': accuracy,
+            'classification_report': report,
+            'confusion_matrix': cm,
+            'X_test_scaled': X_test_scaled,
+            'y_test': y_test,
+            'y_pred': y_pred
+        }
+        
+        return model, scaler, metrics
+    
+    except Exception as e:
+        st.error(f"Error training model: {str(e)}")
+        return None, None, None
+
+# ================================================================================
+# PREDICTION FUNCTION
+# ================================================================================
+
+def make_prediction(model, scaler, feature_values, feature_columns):
+    """
+    Make prediction for given symptoms
+    Returns: prediction (0/1), confidence percentage
+    """
+    try:
+        # Create input array
+        input_data = np.array([feature_values]).reshape(1, -1)
+        
+        # Scale the input
+        input_scaled = scaler.transform(input_data)
+        
+        # Make prediction
+        prediction = model.predict(input_scaled)[0]
+        
+        # Get probability
+        probability = model.predict_proba(input_scaled)[0]
+        
+        # Confidence is the maximum probability
+        confidence = max(probability) * 100
+        
+        return int(prediction), confidence, probability
+    
+    except Exception as e:
+        st.error(f"Error making prediction: {str(e)}")
+        return None, None, None
+
+# ================================================================================
+# UI COMPONENTS
+# ================================================================================
+
+def create_stat_card(title, value, icon, color="blue"):
+    """Create animated stat card"""
+    color_map = {
+        "blue": "#667eea",
+        "green": "#34d399",
+        "red": "#ef4444",
+        "purple": "#a855f7"
+    }
+    
+    card_html = f"""
+    <div class="glass-card stat-card" style="border-left: 4px solid {color_map.get(color, '#667eea')};">
+        <div style="font-size: 24px; margin-bottom: 10px;">{icon}</div>
+        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">{title}</div>
+        <div style="font-size: 28px; font-weight: bold; background: linear-gradient(135deg, #667eea, #764ba2); 
+                    -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{value}</div>
+    </div>
+    """
+    return card_html
+
+def display_hero_section():
+    """Display beautiful hero section on homepage"""
+    hero_html = """
+    <div style="text-align: center; margin: 40px 0; padding: 40px; 
+                background: rgba(255, 255, 255, 0.05); border-radius: 20px;">
+        <h1 style="font-size: 48px; margin-bottom: 20px;">
+            <span style="background: linear-gradient(135deg, #667eea, #764ba2); 
+                         -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                🏥 AI-Based COVID-19 Severity Prediction System
+            </span>
+        </h1>
+        <p style="font-size: 20px; opacity: 0.9; margin-bottom: 30px;">
+            Predict COVID risk and severity using Machine Learning and symptom analysis
+        </p>
+        <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
+            <div style="background: rgba(52, 211, 153, 0.1); padding: 20px; border-radius: 10px; 
+                        border: 1px solid rgba(52, 211, 153, 0.3);">
+                <div style="font-size: 28px; margin-bottom: 10px;">🤖</div>
+                <div style="font-size: 18px; font-weight: bold;">AI-Powered</div>
+            </div>
+            <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 10px; 
+                        border: 1px solid rgba(102, 126, 234, 0.3);">
+                <div style="font-size: 28px; margin-bottom: 10px;">⚡</div>
+                <div style="font-size: 18px; font-weight: bold;">Real-Time</div>
+            </div>
+            <div style="background: rgba(168, 85, 247, 0.1); padding: 20px; border-radius: 10px; 
+                        border: 1px solid rgba(168, 85, 247, 0.3);">
+                <div style="font-size: 28px; margin-bottom: 10px;">📊</div>
+                <div style="font-size: 18px; font-weight: bold;">Analytics</div>
+            </div>
+        </div>
+    </div>
+    """
+    st.markdown(hero_html, unsafe_allow_html=True)
+
+def display_risk_card(is_high_risk, confidence):
+    """Display risk result card with glow effect"""
+    if is_high_risk:
+        card_html = f"""
+        <div class="danger-card">
+            <h2 style="color: #ef4444; margin-bottom: 20px; font-size: 32px;">⚠️ HIGH COVID RISK</h2>
+            <p style="font-size: 18px; margin-bottom: 10px;">Confidence: <strong>{confidence:.1f}%</strong></p>
+            <p style="opacity: 0.8; font-size: 14px;">⚕️ Please consult with a healthcare professional for further evaluation</p>
+        </div>
+        """
+    else:
+        card_html = f"""
+        <div class="success-card">
+            <h2 style="color: #34d399; margin-bottom: 20px; font-size: 32px;">✅ LOW COVID RISK</h2>
+            <p style="font-size: 18px; margin-bottom: 10px;">Confidence: <strong>{confidence:.1f}%</strong></p>
+            <p style="opacity: 0.8; font-size: 14px;">🎉 Continue following preventive measures</p>
+        </div>
+        """
+    
+    st.markdown(card_html, unsafe_allow_html=True)
+
+# ================================================================================
+# PAGE: HOME
+# ================================================================================
+
+def page_home():
+    """Home page with statistics and system overview"""
+    
+    display_hero_section()
+    
+    st.markdown("---")
+    
+    # Load data for statistics
+    df, feature_columns, severity_col = load_data()
+    
+    if df is not None and severity_col is not None:
+        # Calculate statistics
+        total_records = len(df)
+        high_risk_count = int((df[severity_col] > df[severity_col].median()).sum())
+        low_risk_count = total_records - high_risk_count
+        
+        # Create statistics columns
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(create_stat_card(
+                "Total Cases", 
+                f"{total_records:,}", 
+                "📊",
+                "blue"
+            ), unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(create_stat_card(
+                "High Risk", 
+                f"{high_risk_count:,}", 
+                "⚠️",
+                "red"
+            ), unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(create_stat_card(
+                "Low Risk", 
+                f"{low_risk_count:,}", 
+                "✅",
+                "green"
+            ), unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(create_stat_card(
+                "Risk Rate", 
+                f"{(high_risk_count/total_records*100):.1f}%", 
+                "📈",
+                "purple"
+            ), unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Model performance metrics
+        model, scaler, metrics = train_model(df, feature_columns, severity_col)
+        
+        if model is not None and metrics is not None:
+            st.subheader("🤖 AI System Performance")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Model Accuracy", f"{metrics['accuracy']*100:.2f}%", "✅")
+            
+            with col2:
+                st.metric("Status", "Online", "✅", delta_color="off")
+            
+            with col3:
+                st.metric("Training Samples", f"{len(df)*0.8:.0f}", "✅")
+            
+            # Display confusion matrix
+            st.markdown("---")
+            st.subheader("📊 Model Evaluation Metrics")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Confusion Matrix Heatmap
+                fig, ax = plt.subplots(figsize=(6, 5))
+                sns.heatmap(
+                    metrics['confusion_matrix'],
+                    annot=True,
+                    fmt='d',
+                    cmap='Blues',
+                    cbar=True,
+                    ax=ax
+                )
+                ax.set_title('Confusion Matrix', fontsize=14, fontweight='bold')
+                ax.set_ylabel('True Label')
+                ax.set_xlabel('Predicted Label')
+                st.pyplot(fig)
+            
+            with col2:
+                # Classification Report
+                report_df = pd.DataFrame(metrics['classification_report']).transpose()
+                st.dataframe(report_df.round(3), use_container_width=True)
+
+# ================================================================================
+# PAGE: PREDICTION
+# ================================================================================
+
+def page_prediction():
+    """Interactive prediction page"""
+    
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="background: linear-gradient(135deg, #667eea, #764ba2); 
+                   -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            🔮 COVID-19 Risk Prediction
+        </h1>
+        <p style="opacity: 0.8; font-size: 16px;">Enter your symptoms for AI analysis</p>
     </div>
     """, unsafe_allow_html=True)
     
     # Load data and model
-    df = load_dataset()
-    model, scaler, metrics = train_model(df)
+    df, feature_columns, severity_col = load_data()
     
-    if metrics is None:
-        st.error("❌ Error loading model. Please check your data.")
+    if df is None:
+        st.error("Unable to load dataset. Please check the file path.")
         return
     
-    # Statistics Cards
-    col1, col2, col3, col4 = st.columns(4)
+    model, scaler, metrics = train_model(df, feature_columns, severity_col)
+    
+    if model is None:
+        st.error("Unable to train model. Please check your data.")
+        return
+    
+    # Create prediction form
+    st.markdown("""
+    <div class="glass-card" style="padding: 30px; margin-bottom: 30px;">
+        <h3 style="margin-bottom: 20px;">📋 Symptom Assessment</h3>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    symptoms = {}
     
     with col1:
-        st.metric(
-            "🎯 Model Accuracy",
-            f"{metrics['accuracy']*100:.1f}%",
-            "+5%"
+        st.markdown("### Symptom Severity (0-3)")
+        symptoms['Fever'] = st.slider(
+            "🌡️ Fever",
+            min_value=0,
+            max_value=3,
+            value=0,
+            step=1,
+            help="0=None, 1=Mild, 2=Moderate, 3=Severe"
+        )
+        
+        symptoms['Tiredness'] = st.slider(
+            "😴 Tiredness",
+            min_value=0,
+            max_value=3,
+            value=0,
+            step=1,
+            help="0=None, 1=Mild, 2=Moderate, 3=Severe"
+        )
+        
+        symptoms['Dry-Cough'] = st.slider(
+            "🫁 Dry Cough",
+            min_value=0,
+            max_value=3,
+            value=0,
+            step=1,
+            help="0=None, 1=Mild, 2=Moderate, 3=Severe"
         )
     
     with col2:
-        st.metric(
-            "📊 Predictions Made",
-            len(st.session_state.prediction_history),
-            "Real-time"
+        symptoms['Difficulty-in-Breathing'] = st.slider(
+            "💨 Difficulty in Breathing",
+            min_value=0,
+            max_value=3,
+            value=0,
+            step=1,
+            help="0=None, 1=Mild, 2=Moderate, 3=Severe"
         )
-    
-    with col3:
-        st.metric(
-            "⚡ AI Status",
-            "ONLINE",
-            "Active"
-        )
-    
-    with col4:
-        st.metric(
-            "🔬 Dataset Size",
-            len(df) if df is not None else "N/A",
-            "Records"
-        )
-    
-    # Performance Metrics Section
-    st.markdown("---")
-    st.markdown("<h2 style='text-align: center; margin-bottom: 30px;'>📈 System Performance Metrics</h2>", unsafe_allow_html=True)
-    
-    if metrics is not None:
-        # Confusion Matrix Visualization
-        col1, col2 = st.columns(2)
         
-        with col1:
-            # Confusion Matrix Heatmap
-            fig = go.Figure(data=go.Heatmap(
-                z=metrics['confusion_matrix'],
-                x=['Predicted Negative', 'Predicted Positive'],
-                y=['Actual Negative', 'Actual Positive'],
-                colorscale='Viridis',
-                text=metrics['confusion_matrix'],
-                texttemplate="%{text}",
-                textfont={"size": 14},
-                showscale=True
-            ))
+        symptoms['Sore-Throat'] = st.slider(
+            "🗣️ Sore Throat",
+            min_value=0,
+            max_value=3,
+            value=0,
+            step=1,
+            help="0=None, 1=Mild, 2=Moderate, 3=Severe"
+        )
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Prediction button
+    col1, col2, col3 = st.columns([1, 1, 1])
+    
+    with col2:
+        predict_button = st.button(
+            "🚀 PREDICT",
+            use_container_width=True,
+            key="predict_button"
+        )
+    
+    if predict_button:
+        with st.spinner("🔄 AI is analyzing symptoms..."):
+            time.sleep(1)  # Simulate processing
             
-            fig.update_layout(
-                title="Confusion Matrix",
-                xaxis_title="Prediction",
-                yaxis_title="Actual",
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white'),
-                height=400
+            # Prepare input
+            feature_values = [symptoms[col] for col in feature_columns]
+            
+            # Make prediction
+            prediction, confidence, probability = make_prediction(
+                model, scaler, feature_values, feature_columns
             )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with col2:
-            # Model Performance Metrics
-            cm = metrics['confusion_matrix']
-            true_negatives = cm[0][0]
-            false_positives = cm[0][1]
-            false_negatives = cm[1][0]
-            true_positives = cm[1][1]
             
-            sensitivity = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
-            specificity = true_negatives / (true_negatives + false_positives) if (true_negatives + false_positives) > 0 else 0
-            precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
-            
-            metrics_data = {
-                'Metric': ['Accuracy', 'Sensitivity', 'Specificity', 'Precision'],
-                'Score': [
-                    metrics['accuracy'],
-                    sensitivity,
-                    specificity,
-                    precision
-                ]
-            }
-            
-            fig = go.Figure(data=[
-                go.Bar(
-                    x=metrics_data['Metric'],
-                    y=[m*100 for m in metrics_data['Score']],
-                    marker=dict(
-                        color=['#667eea', '#764ba2', '#f093fb', '#4facfe'],
-                        line=dict(color='rgba(255,255,255,0.1)', width=2)
-                    ),
-                    text=[f"{m*100:.1f}%" for m in metrics_data['Score']],
-                    textposition='outside'
-                )
-            ])
-            
-            fig.update_layout(
-                title="Model Performance Metrics",
-                yaxis_title="Score (%)",
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white'),
-                height=400,
-                showlegend=False,
-                hovermode='x'
-            )
-            st.plotly_chart(fig, use_container_width=True)
-    
-    # Key Features Section
-    st.markdown("---")
-    st.markdown("<h2 style='text-align: center; margin-bottom: 30px;'>✨ Key Features</h2>", unsafe_allow_html=True)
-    
-    feature_col1, feature_col2, feature_col3 = st.columns(3)
-    
-    with feature_col1:
-        st.markdown("""
-        <div style="
-            background: rgba(102, 126, 234, 0.1);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-        ">
-            <h3 style="color: #667eea; margin-bottom: 10px;">🤖 AI-Powered</h3>
-            <p style="color: #b0b0b0;">Advanced Random Forest models for 80%+ accuracy</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with feature_col2:
-        st.markdown("""
-        <div style="
-            background: rgba(118, 75, 162, 0.1);
-            border: 1px solid rgba(118, 75, 162, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-        ">
-            <h3 style="color: #764ba2; margin-bottom: 10px;">📱 Responsive</h3>
-            <p style="color: #b0b0b0;">Works seamlessly on all devices</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with feature_col3:
-        st.markdown("""
-        <div style="
-            background: rgba(240, 147, 251, 0.1);
-            border: 1px solid rgba(240, 147, 251, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-        ">
-            <h3 style="color: #f093fb; margin-bottom: 10px;">⚡ Real-time</h3>
-            <p style="color: #b0b0b0;">Instant predictions with analysis</p>
-        </div>
-        """, unsafe_allow_html=True)
+            if prediction is not None:
+                # Determine risk level
+                is_high_risk = prediction == 1
+                
+                # Display risk card
+                st.markdown("---")
+                st.markdown("### 📊 Prediction Result")
+                display_risk_card(is_high_risk, confidence)
+                
+                # Show probability distribution
+                st.markdown("---")
+                st.markdown("### 📈 Confidence Breakdown")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Probability bar chart
+                    fig = go.Figure(data=[
+                        go.Bar(
+                            x=['Low Risk', 'High Risk'],
+                            y=[probability[0]*100, probability[1]*100],
+                            marker=dict(
+                                color=['#34d399', '#ef4444']
+                            ),
+                            text=[f"{probability[0]*100:.1f}%", f"{probability[1]*100:.1f}%"],
+                            textposition='outside',
+                            showlegend=False
+                        )
+                    ])
+                    
+                    fig.update_layout(
+                        title="Probability Distribution",
+                        xaxis_title="Risk Category",
+                        yaxis_title="Probability (%)",
+                        template="plotly_dark",
+                        height=400,
+                        showlegend=False
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    # Gauge chart
+                    fig = go.Figure(data=[
+                        go.Indicator(
+                            mode="gauge+number+delta",
+                            value=confidence,
+                            domain={'x': [0, 1], 'y': [0, 1]},
+                            title={'text': "Confidence Score"},
+                            delta={'reference': 80},
+                            gauge={
+                                'axis': {'range': [None, 100]},
+                                'bar': {'color': "#667eea"},
+                                'steps': [
+                                    {'range': [0, 50], 'color': "#ef4444"},
+                                    {'range': [50, 100], 'color': "#34d399"}
+                                ],
+                                'threshold': {
+                                    'line': {'color': "red", 'width': 4},
+                                    'thickness': 0.75,
+                                    'value': 90
+                                }
+                            }
+                        )
+                    ])
+                    
+                    fig.update_layout(
+                        template="plotly_dark",
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Medical recommendations
+                st.markdown("---")
+                st.markdown("### 🏥 Medical Recommendations")
+                
+                if is_high_risk:
+                    recommendations = [
+                        "🚨 Schedule an appointment with a healthcare provider immediately",
+                        "🏥 Consider getting tested for COVID-19",
+                        "🏠 Stay home and avoid close contact with others",
+                        "💊 Follow doctor's advice on treatment",
+                        "📞 Contact emergency services if symptoms worsen"
+                    ]
+                else:
+                    recommendations = [
+                        "✅ Continue monitoring your health",
+                        "🛡️ Maintain preventive measures (masks, hand hygiene)",
+                        "📊 Track your symptoms regularly",
+                        "🏃 Stay active and maintain a healthy lifestyle",
+                        "📱 Seek medical attention if symptoms develop"
+                    ]
+                
+                for rec in recommendations:
+                    st.info(rec)
+                
+                # Save to history
+                prediction_entry = {
+                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    'symptoms': symptoms,
+                    'prediction': "High Risk" if is_high_risk else "Low Risk",
+                    'confidence': confidence,
+                    'probability': probability.tolist()
+                }
+                
+                st.session_state.prediction_history.append(prediction_entry)
+                
+                # Download report
+                st.markdown("---")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Generate report
+                    report_text = f"""
+                    COVID-19 SEVERITY PREDICTION REPORT
+                    Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+                    
+                    SYMPTOMS ASSESSMENT:
+                    {'='*50}
+                    """
+                    
+                    for symptom, value in symptoms.items():
+                        report_text += f"\n{symptom}: {value}/3"
+                    
+                    report_text += f"""
+                    
+                    PREDICTION RESULTS:
+                    {'='*50}
+                    Risk Level: {'HIGH RISK' if is_high_risk else 'LOW RISK'}
+                    Confidence: {confidence:.2f}%
+                    
+                    PROBABILITY DISTRIBUTION:
+                    {'='*50}
+                    Low Risk Probability: {probability[0]*100:.2f}%
+                    High Risk Probability: {probability[1]*100:.2f}%
+                    
+                    DISCLAIMER:
+                    This prediction is for informational purposes only and should not be 
+                    used as a substitute for professional medical advice. Always consult 
+                    with a healthcare provider for accurate diagnosis and treatment.
+                    """
+                    
+                    st.download_button(
+                        label="📥 Download Report",
+                        data=report_text,
+                        file_name=f"covid_prediction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                        mime="text/plain",
+                        use_container_width=True
+                    )
 
-# ==================== PREDICTION PAGE ====================
-def prediction_page():
-    """Create interactive prediction form with degree scales"""
-    st.markdown("<h1 style='text-align: center;'>🔮 COVID-19 Severity Prediction</h1>", unsafe_allow_html=True)
+# ================================================================================
+# PAGE: ANALYTICS
+# ================================================================================
+
+def page_analytics():
+    """Advanced analytics and visualizations"""
     
-    # Load model
-    df = load_dataset()
-    model, scaler, metrics = train_model(df)
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="background: linear-gradient(135deg, #667eea, #764ba2); 
+                   -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            📊 Advanced Analytics
+        </h1>
+        <p style="opacity: 0.8; font-size: 16px;">Explore data insights and patterns</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    if model is None:
-        st.error("❌ Model not trained. Please ensure dataset is available.")
+    # Load data
+    df, feature_columns, severity_col = load_data()
+    
+    if df is None:
+        st.error("Unable to load dataset.")
         return
     
-    # Create prediction form with severity scales
-    st.markdown("### 🌡️ Enter Your Symptoms on Severity Scale")
-    st.info("Rate each symptom from 0 (None) to 4 (Critical)")
+    # Symptom distribution
+    st.markdown("### 📈 Symptom Distribution")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        fever_level = st.slider(
-            "🌡️ Fever Severity",
-            min_value=0,
-            max_value=4,
-            value=0,
-            step=1,
-            help="0=No fever | 1=Low (37-38°C) | 2=Moderate (38-39°C) | 3=High (39-40°C) | 4=Very High (40°C+)"
-        )
-        st.caption(f"Temperature: {get_fever_display(fever_level)}")
+        # Histogram of symptoms
+        fig = go.Figure()
         
-        tiredness_level = st.slider(
-            "😴 Tiredness/Fatigue Severity",
-            min_value=0,
-            max_value=4,
-            value=0,
-            step=1,
-            help="0=None | 1=Mild | 2=Moderate | 3=Severe | 4=Extreme"
-        )
-        st.caption(f"Severity: {get_severity_label(tiredness_level)}")
+        for col in feature_columns:
+            fig.add_trace(go.Histogram(
+                x=df[col],
+                name=col,
+                opacity=0.75
+            ))
         
-        dry_cough_level = st.slider(
-            "🤧 Dry Cough Severity",
-            min_value=0,
-            max_value=4,
-            value=0,
-            step=1,
-            help="0=No cough | 1=Occasional | 2=Frequent | 3=Persistent | 4=Constant"
+        fig.update_layout(
+            title="Symptoms Distribution",
+            xaxis_title="Severity Level",
+            yaxis_title="Frequency",
+            barmode='overlay',
+            template="plotly_dark",
+            height=400
         )
-        st.caption(f"Severity: {get_severity_label(dry_cough_level)}")
+        
+        st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        difficulty_breathing_level = st.slider(
-            "💨 Difficulty in Breathing Severity",
-            min_value=0,
-            max_value=4,
-            value=0,
-            step=1,
-            help="0=No difficulty | 1=Mild | 2=Moderate | 3=Significant | 4=Severe"
-        )
-        st.caption(f"Severity: {get_severity_label(difficulty_breathing_level)}")
+        # Box plot
+        fig = go.Figure()
         
-        sore_throat_level = st.slider(
-            "👅 Sore Throat Severity",
-            min_value=0,
-            max_value=4,
-            value=0,
-            step=1,
-            help="0=No sore throat | 1=Mild | 2=Moderate | 3=Severe | 4=Extreme"
+        for col in feature_columns:
+            fig.add_trace(go.Box(
+                y=df[col],
+                name=col,
+                showlegend=True
+            ))
+        
+        fig.update_layout(
+            title="Symptoms Range Analysis",
+            yaxis_title="Severity Level",
+            template="plotly_dark",
+            height=400
         )
-        st.caption(f"Severity: {get_severity_label(sore_throat_level)}")
+        
+        st.plotly_chart(fig, use_container_width=True)
     
-    # Convert to binary for model
-    feature_values = [
-        convert_scale_to_binary(fever_level),
-        convert_scale_to_binary(tiredness_level),
-        convert_scale_to_binary(dry_cough_level),
-        convert_scale_to_binary(difficulty_breathing_level),
-        convert_scale_to_binary(sore_throat_level)
-    ]
-    feature_columns = ['Fever', 'Tiredness', 'Dry-Cough', 'Difficulty-in-Breathing', 'Sore-Throat']
-    
-    # Overall Severity Summary
+    # Correlation heatmap
     st.markdown("---")
-    st.markdown("### 📊 Overall Symptom Summary")
+    st.markdown("### 🔗 Correlation Analysis")
     
-    overall_severity_score = (fever_level + tiredness_level + dry_cough_level + difficulty_breathing_level + sore_throat_level) / 5
+    correlation_matrix = df[feature_columns + [severity_col]].corr()
     
-    col1, col2, col3, col4 = st.columns(4)
+    fig = go.Figure(data=go.Heatmap(
+        z=correlation_matrix.values,
+        x=correlation_matrix.columns,
+        y=correlation_matrix.columns,
+        colorscale='Viridis',
+        text=correlation_matrix.values.round(2),
+        texttemplate='%{text:.2f}',
+        textfont={"size": 10}
+    ))
+    
+    fig.update_layout(
+        title="Feature Correlation Heatmap",
+        template="plotly_dark",
+        height=500,
+        xaxis_title="Features",
+        yaxis_title="Features"
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Severity comparison
+    st.markdown("---")
+    st.markdown("### ⚠️ Severity Comparison")
+    
+    col1, col2 = st.columns(2)
     
     with col1:
-        st.metric("Average Severity", f"{overall_severity_score:.1f}/4")
-    
-    with col2:
-        if overall_severity_score < 1:
-            status = "✅ Minimal"
-        elif overall_severity_score < 2:
-            status = "🟡 Mild"
-        elif overall_severity_score < 3:
-            status = "🟠 Moderate"
-        else:
-            status = "🔴 Severe"
-        st.metric("Overall Status", status)
-    
-    with col3:
-        symptoms_count = sum(1 for v in [fever_level, tiredness_level, dry_cough_level, difficulty_breathing_level, sore_throat_level] if v > 0)
-        st.metric("Symptoms Present", symptoms_count)
-    
-    with col4:
-        critical_count = sum(1 for v in [fever_level, tiredness_level, dry_cough_level, difficulty_breathing_level, sore_throat_level] if v >= 3)
-        st.metric("Critical Symptoms", critical_count)
-    
-    # Prediction Button
-    st.markdown("---")
-    col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
-    
-    with col_btn2:
-        if st.button("🚀 PREDICT COVID SEVERITY", use_container_width=True, key="predict_btn"):
-            with st.spinner("🔍 Analyzing symptoms..."):
-                # Make prediction
-                prediction, confidence, probability = make_prediction(
-                    model, scaler, feature_values, feature_columns
-                )
-                
-                # Store in session state
-                st.session_state.last_prediction = {
-                    'symptoms': dict(zip(feature_columns, feature_values)),
-                    'symptom_scales': {
-                        'Fever': fever_level,
-                        'Tiredness': tiredness_level,
-                        'Dry-Cough': dry_cough_level,
-                        'Difficulty-in-Breathing': difficulty_breathing_level,
-                        'Sore-Throat': sore_throat_level
-                    },
-                    'prediction': prediction,
-                    'confidence': confidence,
-                    'probability': probability,
-                    'timestamp': get_current_time(),
-                    'overall_severity_score': overall_severity_score
-                }
-                
-                # Add to history
-                add_to_history({
-                    'symptoms': dict(zip(feature_columns, feature_values)),
-                    'prediction': prediction,
-                    'confidence': confidence
-                })
-    
-    # Display Prediction Results
-    if 'last_prediction' in st.session_state:
-        prediction_data = st.session_state.last_prediction
-        prediction = prediction_data['prediction']
-        confidence = prediction_data['confidence']
-        probability = prediction_data['probability']
-        
-        st.markdown("---")
-        st.markdown("<h2 style='text-align: center; margin-bottom: 30px;'>📊 Prediction Results</h2>", unsafe_allow_html=True)
-        
-        # Risk Display Card
-        if prediction == 0:
-            st.markdown("""
-            <div class="success-card">
-                <div style="text-align: center;">
-                    <h1 style="color: #4caf50; font-size: 3rem; margin: 0;">✅ LOW COVID RISK</h1>
-                    <p style="color: #4caf50; font-size: 1.2rem; margin-top: 10px;">Your symptoms indicate low COVID-19 severity risk</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div class="danger-card">
-                <div style="text-align: center;">
-                    <h1 style="color: #f44336; font-size: 3rem; margin: 0;">⚠️ HIGH COVID RISK</h1>
-                    <p style="color: #f44336; font-size: 1.2rem; margin-top: 10px;">Your symptoms indicate high COVID-19 severity risk</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Metrics
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("AI Confidence", f"{confidence:.1f}%")
-        
-        with col2:
-            st.metric("Prediction", "🔴 High Risk" if prediction == 1 else "🟢 Low Risk")
-        
-        with col3:
-            st.metric("Overall Severity", f"{prediction_data['overall_severity_score']:.1f}/4")
-        
-        with col4:
-            st.metric("Timestamp", prediction_data['timestamp'].split()[1])
-        
-        # Probability Visualization
-        st.markdown("### 📈 Prediction Probability")
+        # Pie chart for risk distribution
+        risk_counts = (df[severity_col] > df[severity_col].median()).value_counts()
         
         fig = go.Figure(data=[
-            go.Bar(
-                x=['Low Risk', 'High Risk'],
-                y=[probability[0]*100, probability[1]*100],
-                marker=dict(
-                    color=['#4caf50', '#f44336'],
-                    line=dict(color='rgba(255,255,255,0.2)', width=2)
-                ),
-                text=[f"{probability[0]*100:.1f}%", f"{probability[1]*100:.1f}%"],
-                textposition='outside',
-                hovertemplate='<b>%{x}</b><br>Probability: %{y:.2f}%<extra></extra>'
+            go.Pie(
+                labels=['Low Risk', 'High Risk'],
+                values=[risk_counts[False], risk_counts[True]],
+                marker=dict(colors=['#34d399', '#ef4444']),
+                hole=0.4
             )
         ])
         
         fig.update_layout(
-            title="COVID-19 Severity Prediction Probabilities",
-            yaxis_title="Probability (%)",
-            xaxis_title="Risk Level",
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='white'),
-            height=400,
-            showlegend=False
+            title="COVID Risk Distribution",
+            template="plotly_dark",
+            height=400
         )
+        
         st.plotly_chart(fig, use_container_width=True)
-        
-        # Medical Recommendations
-        st.markdown("### 🏥 Medical Recommendations")
-        
-        if prediction == 0:
-            st.info("""
-            ✅ **Low Risk Assessment**
-            
-            - Continue following COVID-19 prevention guidelines
-            - Monitor your symptoms regularly
-            - Maintain proper hygiene and sanitation
-            - Stay hydrated and get adequate rest
-            - If symptoms worsen, seek medical attention
-            - Consider periodic health check-ups
-            """)
-        else:
-            st.warning("""
-            ⚠️ **High Risk Assessment**
-            
-            - **CONSULT A HEALTHCARE PROFESSIONAL IMMEDIATELY**
-            - Isolate yourself from others to prevent spread
-            - Monitor vital signs (temperature, oxygen level, blood pressure)
-            - Stay hydrated and maintain proper nutrition
-            - Avoid physical exertion and get adequate rest
-            - Seek emergency medical care if symptoms worsen
-            - Follow local health authority guidelines
-            """)
-        
-        # Detailed Symptom Analysis
-        st.markdown("### 🔍 Detailed Symptom Analysis")
-        
-        symptom_analysis = {
-            'Fever': ('🌡️', prediction_data['symptom_scales']['Fever']),
-            'Tiredness': ('😴', prediction_data['symptom_scales']['Tiredness']),
-            'Dry-Cough': ('🤧', prediction_data['symptom_scales']['Dry-Cough']),
-            'Difficulty-in-Breathing': ('💨', prediction_data['symptom_scales']['Difficulty-in-Breathing']),
-            'Sore-Throat': ('👅', prediction_data['symptom_scales']['Sore-Throat'])
-        }
-        
-        col1, col2, col3 = st.columns(3)
-        columns = [col1, col2, col3]
-        
-        for idx, (symptom, (icon, value)) in enumerate(symptom_analysis.items()):
-            with columns[idx % 3]:
-                severity_label = get_severity_label(value)
-                
-                if value == 0:
-                    color, bg_color, border_color = "#4caf50", "rgba(76, 175, 80, 0.1)", "rgba(76, 175, 80, 0.3)"
-                elif value == 1:
-                    color, bg_color, border_color = "#8bc34a", "rgba(139, 195, 74, 0.1)", "rgba(139, 195, 74, 0.3)"
-                elif value == 2:
-                    color, bg_color, border_color = "#ff9800", "rgba(255, 152, 0, 0.1)", "rgba(255, 152, 0, 0.3)"
-                elif value == 3:
-                    color, bg_color, border_color = "#ff5722", "rgba(255, 87, 34, 0.1)", "rgba(255, 87, 34, 0.3)"
-                else:
-                    color, bg_color, border_color = "#f44336", "rgba(244, 67, 54, 0.1)", "rgba(244, 67, 54, 0.3)"
-                
-                st.markdown(f"""
-                <div style="
-                    background: {bg_color};
-                    border: 2px solid {border_color};
-                    border-radius: 8px;
-                    padding: 15px;
-                    text-align: center;
-                ">
-                    <h4 style="margin-bottom: 10px;">{icon} {symptom}</h4>
-                    <h3 style="color: {color}; margin: 0; font-size: 1.5rem;">{severity_label}</h3>
-                    <p style="color: #b0b0b0; margin: 5px 0 0 0; font-size: 0.9rem;">Level {value}/4</p>
-                </div>
-                """, unsafe_allow_html=True)
-
-# ==================== ANALYTICS PAGE ====================
-def analytics_page():
-    """Create advanced analytics visualizations"""
-    st.markdown("<h1 style='text-align: center;'>📊 Advanced Analytics & Insights</h1>", unsafe_allow_html=True)
-    
-    df = load_dataset()
-    if df is None:
-        st.error("Dataset not available")
-        return
-    
-    st.markdown("### 📈 Symptom Distribution Analysis")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        symptom_cols = ['Fever', 'Tiredness', 'Dry-Cough', 'Difficulty-in-Breathing', 'Sore-Throat']
-        available_symptoms = [col for col in symptom_cols if col in df.columns]
-        
-        if available_symptoms:
-            symptom_counts = df[available_symptoms].sum().sort_values(ascending=True)
-            
-            fig = go.Figure(data=[
-                go.Bar(
-                    y=symptom_counts.index,
-                    x=symptom_counts.values,
-                    orientation='h',
-                    marker=dict(
-                        color=symptom_counts.values,
-                        colorscale='Viridis',
-                        line=dict(color='rgba(255,255,255,0.2)', width=2)
-                    ),
-                    text=symptom_counts.values,
-                    textposition='outside'
-                )
-            ])
-            
-            fig.update_layout(
-                title="Symptom Prevalence in Dataset",
-                xaxis_title="Count",
-                yaxis_title="Symptom",
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white'),
-                height=400
-            )
-            st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        if st.session_state.prediction_history:
-            confidences = [p['confidence'] for p in st.session_state.prediction_history]
-            
-            fig = go.Figure(data=[
-                go.Histogram(
-                    x=confidences,
-                    nbinsx=15,
-                    marker=dict(
-                        color='#667eea',
-                        line=dict(color='rgba(255,255,255,0.2)', width=2)
-                    )
-                )
-            ])
-            
-            fig.update_layout(
-                title="Prediction Confidence Distribution",
-                xaxis_title="Confidence (%)",
-                yaxis_title="Frequency",
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='white'),
-                height=400
-            )
-            st.plotly_chart(fig, use_container_width=True)
+        # Average symptoms by risk level
+        df['risk_level'] = df[severity_col] > df[severity_col].median()
+        
+        avg_symptoms = df.groupby('risk_level')[feature_columns].mean()
+        
+        fig = go.Figure()
+        
+        for idx, risk in enumerate([False, True]):
+            fig.add_trace(go.Bar(
+                name='High Risk' if risk else 'Low Risk',
+                x=feature_columns,
+                y=avg_symptoms.loc[risk],
+                marker=dict(color='#ef4444' if risk else '#34d399')
+            ))
+        
+        fig.update_layout(
+            title="Average Symptoms by Risk Level",
+            xaxis_title="Symptoms",
+            yaxis_title="Average Severity",
+            barmode='group',
+            template="plotly_dark",
+            height=400
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Statistical summary
+    st.markdown("---")
+    st.markdown("### 📋 Statistical Summary")
+    
+    st.dataframe(
+        df[feature_columns + [severity_col]].describe().round(2),
+        use_container_width=True
+    )
 
-# ==================== HISTORY PAGE ====================
-def history_page():
-    """Display prediction history"""
-    st.markdown("<h1 style='text-align: center;'>📜 Prediction History</h1>", unsafe_allow_html=True)
+# ================================================================================
+# PAGE: HISTORY
+# ================================================================================
+
+def page_history():
+    """Prediction history page"""
+    
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="background: linear-gradient(135deg, #667eea, #764ba2); 
+                   -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            📜 Prediction History
+        </h1>
+        <p style="opacity: 0.8; font-size: 16px;">Your previous predictions</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     if not st.session_state.prediction_history:
-        st.info("No predictions made yet. Go to the Prediction page to get started!")
+        st.info("📭 No prediction history yet. Make a prediction to get started!")
         return
     
-    st.markdown("### Recent Predictions")
+    # Display history
+    st.markdown("### 📊 Recent Predictions")
     
+    # Create history dataframe
     history_data = []
-    for idx, pred in enumerate(reversed(st.session_state.prediction_history), 1):
+    
+    for entry in st.session_state.prediction_history:
         history_data.append({
-            '#': idx,
-            'Timestamp': pred['timestamp'],
-            'Risk': '⚠️ HIGH' if pred['prediction'] == 1 else '✅ LOW',
-            'Confidence': f"{pred['confidence']:.1f}%",
+            'Timestamp': entry['timestamp'],
+            'Risk Level': entry['prediction'],
+            'Confidence': f"{entry['confidence']:.1f}%",
+            'Fever': entry['symptoms']['Fever'],
+            'Tiredness': entry['symptoms']['Tiredness'],
+            'Dry-Cough': entry['symptoms']['Dry-Cough'],
+            'Difficulty-in-Breathing': entry['symptoms']['Difficulty-in-Breathing'],
+            'Sore-Throat': entry['symptoms']['Sore-Throat']
         })
     
-    df_history = pd.DataFrame(history_data)
-    st.dataframe(df_history, use_container_width=True, hide_index=True)
+    history_df = pd.DataFrame(history_data[::-1])  # Reverse for newest first
     
+    st.dataframe(history_df, use_container_width=True)
+    
+    # Confidence trend chart
+    if len(st.session_state.prediction_history) > 1:
+        st.markdown("---")
+        st.markdown("### 📈 Confidence Trend")
+        
+        trend_data = {
+            'Timestamp': [entry['timestamp'] for entry in st.session_state.prediction_history],
+            'Confidence': [entry['confidence'] for entry in st.session_state.prediction_history]
+        }
+        
+        fig = go.Figure(data=[
+            go.Scatter(
+                x=trend_data['Timestamp'],
+                y=trend_data['Confidence'],
+                mode='lines+markers',
+                marker=dict(color='#667eea', size=10),
+                line=dict(color='#667eea', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(102, 126, 234, 0.2)'
+            )
+        ])
+        
+        fig.update_layout(
+            title="Prediction Confidence Over Time",
+            xaxis_title="Time",
+            yaxis_title="Confidence (%)",
+            template="plotly_dark",
+            height=400
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Export history
     st.markdown("---")
-    st.markdown("### 📊 History Statistics")
+    st.markdown("### 📥 Export History")
     
-    col1, col2, col3, col4 = st.columns(4)
+    if st.button("Download History as JSON"):
+        json_data = json.dumps(st.session_state.prediction_history, indent=2)
+        st.download_button(
+            label="📥 Download JSON",
+            data=json_data,
+            file_name=f"prediction_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            mime="application/json",
+            use_container_width=True
+        )
     
-    total = len(st.session_state.prediction_history)
-    high_risk = sum(1 for p in st.session_state.prediction_history if p['prediction'] == 1)
-    low_risk = total - high_risk
-    avg_conf = np.mean([p['confidence'] for p in st.session_state.prediction_history])
+    if st.button("Download History as CSV"):
+        csv_data = history_df.to_csv(index=False)
+        st.download_button(
+            label="📥 Download CSV",
+            data=csv_data,
+            file_name=f"prediction_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
     
-    with col1:
-        st.metric("Total Predictions", total)
-    with col2:
-        st.metric("High Risk", high_risk)
-    with col3:
-        st.metric("Low Risk", low_risk)
-    with col4:
-        st.metric("Avg Confidence", f"{avg_conf:.1f}%")
+    # Clear history
+    if st.button("🗑️ Clear History", help="Clear all prediction history"):
+        st.session_state.prediction_history = []
+        st.success("✅ History cleared!")
+        st.rerun()
 
-# ==================== ABOUT PAGE ====================
-def about_page():
-    """Display about page"""
-    st.markdown("<h1 style='text-align: center;'>ℹ️ About This System</h1>", unsafe_allow_html=True)
+# ================================================================================
+# PAGE: ABOUT
+# ================================================================================
+
+def page_about():
+    """About and information page"""
     
-    st.markdown("### 🎯 Project Overview")
     st.markdown("""
-    AI-Based COVID-19 Severity Prediction System - An advanced machine learning application 
-    for predicting COVID-19 severity based on symptoms.
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="background: linear-gradient(135deg, #667eea, #764ba2); 
+                   -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            ℹ️ About This System
+        </h1>
+    </div>
+    """, unsafe_allow_html=True)
     
-    **Version:** 2.0 - Optimized for 80%+ Accuracy
-    """)
+    # Project Overview
+    st.markdown("### 📋 Project Overview")
     
+    overview_text = """
+    The **AI-Based COVID-19 Severity Prediction System** is an advanced machine learning 
+    application designed to assess the risk and severity of COVID-19 based on reported symptoms. 
+    
+    This system uses state-of-the-art algorithms to provide real-time predictions that can help 
+    users understand their potential health risk and take appropriate medical action.
+    """
+    
+    st.info(overview_text)
+    
+    # ML Algorithm Details
     st.markdown("---")
-    st.markdown("### 🤖 Algorithm: Random Forest Classifier")
+    st.markdown("### 🤖 Machine Learning Algorithm")
     
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("""
-        **Features Used:**
-        - Fever
-        - Tiredness
-        - Dry-Cough
-        - Difficulty-in-Breathing
-        - Sore-Throat
+        **Algorithm: Logistic Regression**
+        - Type: Supervised Learning
+        - Model: Binary Classification
+        - Solver: LBFGS
+        - Max Iterations: 1000
+        - Class Weight: Balanced
         """)
     
     with col2:
         st.markdown("""
-        **Model Parameters:**
-        - n_estimators: 100
-        - max_depth: 15
-        - class_weight: balanced
-        - random_state: 42
+        **Feature Scaling: StandardScaler**
+        - Normalizes features to have zero mean and unit variance
+        - Essential for Logistic Regression
+        - Applied to both training and prediction data
         """)
     
+    # Dataset Information
     st.markdown("---")
-    st.markdown("### ⚠️ Medical Disclaimer")
+    st.markdown("### 📊 Dataset Information")
     
-    st.error("""
-    This system is for educational purposes only. NOT a medical diagnosis tool.
-    Always consult healthcare professionals for medical concerns.
+    df, feature_columns, severity_col = load_data()
+    
+    if df is not None:
+        dataset_info = f"""
+        **Dataset Name:** Cleaned-Data.csv
+        
+        **Total Records:** {len(df):,}
+        
+        **Input Features ({len(feature_columns)}):**
+        """
+        
+        st.markdown(dataset_info)
+        
+        for i, feature in enumerate(feature_columns, 1):
+            st.write(f"  {i}. {feature}")
+        
+        st.markdown(f"**Target Variable:** {severity_col}")
+        st.markdown(f"**Data Range:** 0-3 (None, Mild, Moderate, Severe)")
+    
+    # Technology Stack
+    st.markdown("---")
+    st.markdown("### 💻 Technology Stack")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        **Backend**
+        - Python 3.x
+        - Pandas
+        - NumPy
+        """)
+    
+    with col2:
+        st.markdown("""
+        **Machine Learning**
+        - Scikit-learn
+        - StandardScaler
+        - LogisticRegression
+        """)
+    
+    with col3:
+        st.markdown("""
+        **Frontend & Visualization**
+        - Streamlit
+        - Plotly
+        - Matplotlib
+        - Seaborn
+        """)
+    
+    # Developer Section
+    st.markdown("---")
+    st.markdown("### 👨‍💻 Developer Section")
+    
+    st.markdown("""
+    **Developed By:** AI Development Team
+    
+    **Version:** 1.0.0
+    
+    **Last Updated:** 2024
+    
+    **Contact:** [Your Contact Information]
     """)
+    
+    # Disclaimer
+    st.markdown("---")
+    st.markdown("### ⚖️ Disclaimer")
+    
+    disclaimer_text = """
+    ⚠️ **IMPORTANT DISCLAIMER**
+    
+    This AI-Based COVID-19 Severity Prediction System is intended for **informational purposes only** 
+    and should **NOT** be used as a substitute for professional medical advice, diagnosis, or treatment.
+    
+    - The predictions generated by this system are based on machine learning models trained on 
+      historical data and may not be 100% accurate.
+    
+    - Always consult with a qualified healthcare professional for medical advice.
+    
+    - In case of emergency, please seek immediate medical attention from your healthcare provider 
+      or call emergency services.
+    
+    - The developers and creators of this system assume no responsibility for any adverse outcomes 
+      resulting from the use of this application.
+    
+    - By using this system, you agree to the above disclaimer and acknowledge that you understand 
+      these limitations.
+    """
+    
+    st.warning(disclaimer_text)
+    
+    # Features List
+    st.markdown("---")
+    st.markdown("### ✨ Key Features")
+    
+    features = [
+        "🎯 Real-time COVID-19 risk assessment",
+        "🤖 Advanced machine learning predictions",
+        "📊 Comprehensive analytics and visualizations",
+        "📜 Prediction history tracking",
+        "📥 Download reports and history",
+        "🌙 Modern dark theme with glassmorphism UI",
+        "⚡ Fast and responsive interface",
+        "🔒 Client-side processing (no data stored)"
+    ]
+    
+    for feature in features:
+        st.write(f"✅ {feature}")
 
-# ==================== MAIN APP ====================
-def main():
-    """Main application function"""
-    apply_custom_css()
+# ================================================================================
+# SIDEBAR NAVIGATION
+# ================================================================================
+
+def create_sidebar():
+    """Create sidebar navigation"""
     
     with st.sidebar:
-        st.markdown("<h2 style='text-align: center;'>🏥 COVID-19 AI System</h2>", unsafe_allow_html=True)
-        st.markdown(f"**⏰ {get_current_time()}**")
-        
+        # Logo/Title
         st.markdown("""
-        <div style="
-            background: rgba(76, 175, 80, 0.1);
-            border: 1px solid rgba(76, 175, 80, 0.3);
-            border-radius: 8px;
-            padding: 10px;
-            text-align: center;
-            margin: 10px 0;
-        ">
-            <p style="margin: 0; color: #4caf50; font-weight: 600;">🟢 AI ONLINE</p>
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h2 style="background: linear-gradient(135deg, #667eea, #764ba2); 
+                       -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                🏥 COVID-19 AI
+            </h2>
         </div>
         """, unsafe_allow_html=True)
         
         st.markdown("---")
         
+        # Navigation menu
+        st.markdown("### 📱 Navigation")
+        
+        pages = {
+            "🏠 Home": "home",
+            "🔮 Prediction": "prediction",
+            "📊 Analytics": "analytics",
+            "📜 History": "history",
+            "ℹ️ About": "about"
+        }
+        
         page = st.radio(
-            "Navigation",
-            ["🏠 Homepage", "🔮 Prediction", "📊 Analytics", "📜 History", "ℹ️ About"],
+            "Select Page:",
+            list(pages.keys()),
             label_visibility="collapsed"
         )
         
         st.markdown("---")
         
-        df = load_dataset()
-        model, scaler, metrics = train_model(df)
+        # Model Status
+        st.markdown("### 🤖 Model Status")
         
-        if metrics is not None:
-            st.markdown("### 📈 Model Stats")
-            st.metric("Accuracy", f"{metrics['accuracy']*100:.1f}%")
+        df, feature_columns, severity_col = load_data()
         
-        st.markdown("### 📊 System")
-        st.metric("Predictions", len(st.session_state.prediction_history))
+        if df is not None:
+            model, scaler, metrics = train_model(df, feature_columns, severity_col)
+            
+            if model is not None and metrics is not None:
+                col1, col2 = st.columns([1, 2])
+                
+                with col1:
+                    st.markdown("Status:")
+                
+                with col2:
+                    st.markdown("""
+                    <span class="status-indicator status-online"></span>
+                    <span style="opacity: 0.8;">Online</span>
+                    """, unsafe_allow_html=True)
+                
+                st.metric("Accuracy", f"{metrics['accuracy']*100:.2f}%")
+                st.metric("Dataset Size", f"{len(df):,} records")
         
         st.markdown("---")
-        st.markdown("<p style='text-align: center; color: #888; font-size: 0.8rem;'>v2.0 | AI Powered</p>", unsafe_allow_html=True)
+        
+        # System Time
+        st.markdown("### 🕐 System Information")
+        
+        current_time = datetime.now().strftime("%H:%M:%S")
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        
+        st.write(f"**Time:** {current_time}")
+        st.write(f"**Date:** {current_date}")
+        
+        st.markdown("---")
+        
+        # Footer
+        st.markdown("""
+        <div style="text-align: center; opacity: 0.6; font-size: 12px; margin-top: 30px;">
+            <p>🏥 AI-Based COVID-19 Severity Prediction System</p>
+            <p>v1.0.0 | © 2024</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        return pages.get(page, "home")
+
+# ================================================================================
+# MAIN APPLICATION
+# ================================================================================
+
+def main():
+    """Main application function"""
     
-    if page == "🏠 Homepage":
-        homepage()
-    elif page == "🔮 Prediction":
-        prediction_page()
-    elif page == "📊 Analytics":
-        analytics_page()
-    elif page == "📜 History":
-        history_page()
-    elif page == "ℹ️ About":
-        about_page()
+    # Create sidebar and get selected page
+    selected_page = create_sidebar()
+    
+    # Route to selected page
+    if selected_page == "home":
+        page_home()
+    elif selected_page == "prediction":
+        page_prediction()
+    elif selected_page == "analytics":
+        page_analytics()
+    elif selected_page == "history":
+        page_history()
+    elif selected_page == "about":
+        page_about()
+
+# ================================================================================
+# APPLICATION ENTRY POINT
+# ================================================================================
 
 if __name__ == "__main__":
     main()
